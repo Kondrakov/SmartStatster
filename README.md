@@ -8,7 +8,7 @@ Statistic bot
 
 Схема работы:
 
-(1) --GET request local--> (2) --selenium GET/Chrome request--> мессенджер
+(1) --GET request local--> (2) --selenium GET/Chrome request--> мессенджер <br/>
 мессенджер --GET response json--> (2) --GET response json--> (1)(json parsing)
 
 Требования:
