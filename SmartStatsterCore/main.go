@@ -15,10 +15,10 @@ func main() {
 			MessageId int `json:"message_id"`
 			From      struct {
 				Id           int    `json:"id"`
-				IsBot        bool   "is_bot"
-				FirstName    string "first_name"
-				LastName     string "last_name"
-				LanguageCode string "language_code"
+				IsBot        bool   `json:"is_bot"`
+				FirstName    string `json:"first_name"`
+				LastName     string `json:"last_name"`
+				LanguageCode string `json:"language_code"`
 			} `json:"from"`
 			Chat struct {
 				Id        int    `json:"id"`
