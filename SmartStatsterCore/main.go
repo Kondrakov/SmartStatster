@@ -1,43 +1,77 @@
 // SmartStatsterCore project main.go
 package main
 
+//"strconv"
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"flag"
+	"log"
+
+	"github.com/valyala/fasthttp"
 )
+
+const (
+	pi float64 = 3.1415
+)
+
+var addr = flag.String("addr", "127.0.0.1:8080",
+	"TCP address to listen to for incoming connections")
 
 func main() {
 
-	type Update struct {
-		UpdateId int `json:"update_id"`
-		Message  struct {
-			MessageId int `json:"message_id"`
-			From      struct {
-				Id           int    `json:"id"`
-				IsBot        bool   `json:"is_bot"`
-				FirstName    string `json:"first_name"`
-				LastName     string `json:"last_name"`
-				LanguageCode string `json:"language_code"`
-			} `json:"from"`
-			Chat struct {
-				Id        int    `json:"id"`
-				FirstName string `json:"first_name"`
-				LastName  string `json:"last_name"`
-				Type      string `json:"type"`
-			} `json:"chat"`
-			Date int    `json:"date"`
-			Text string `json:"text"`
-		} `json:"message"`
+	flag.Parse()
+
+	s := fasthttp.Server{
+		Handler: handler,
 	}
-	type Updates struct {
-		Ok     bool `json:"ok"`
-		Result []Update
+	errFH := s.ListenAndServe(*addr)
+	if errFH != nil {
+		log.Fatalf("error in ListenAndServe: %s", errFH)
 	}
+}
+
+func handler(ctx *fasthttp.RequestCtx) {
+
+	ctx.SetContentType("text/html;charset=utf-8")
+	ctx.WriteString("<html><head></head><body>" +
+		"<button id=\"get_request\">GET request</button>" +
+		"<input type=\"password\" id=\"action\"/>" +
+		"<script type=\"text/javascript\">" +
+		"var getRequest = document.getElementById(\"get_request\");" +
+		"var getMethod = (event) => {" +
+		"var request = new XMLHttpRequest();" +
+		"request.open(\"GET\", \"http://127.0.0.1:8080/bot_get?action=getupdates\", true);" +
+		"request.setRequestHeader(\"Content-type\", \"application/x-www-form-urlencoded\");" +
+		"var params = \"action=getupdates\";" +
+		"request.send(params);" +
+		"console.log(\"hhhh\");};" +
+		"getRequest.addEventListener(\"click\", getMethod);" +
+		"</script></body></html>")
+
+	fmt.Println("Query string is %q\n", string(ctx.QueryArgs().Peek("action")))
+
+	//var d bool = "getupdates" == string(ctx.QueryArgs().Peek("action"))
+	//fmt.Println(strconv.FormatBool(d))
+
+	actionHandler(string(ctx.QueryArgs().Peek("action")))
+}
+
+func actionHandler(action string) {
 
 	var jsonBlob = []byte("")
 
-	resp, err := http.Get("")
+	var actionNext string = ""
+	switch action {
+	case "getupdates":
+		fmt.Println("one")
+		actionNext = "?action=getupdates"
+	case "sendmessage":
+		actionNext = "?action=sendmessage"
+	}
+	resp, err := http.Get("http://127.0.0.1:8085/bot_get" + actionNext)
 	if err != nil {
 		fmt.Println(err)
 		return
