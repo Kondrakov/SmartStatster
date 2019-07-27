@@ -25,9 +25,9 @@ public class RqThruBrowser {
         return getWebElementFromDriver("xpath", "//pre").getText();
     }
 
-    public String sendMessage(String params) {
-        driver.get(SEND_MESSAGE);
-        return params;
+    public String sendMessage(String messageText, String chatID) {
+        driver.get(SEND_MESSAGE + "?chat_id=" + chatID + "&text=" + messageText);
+        return messageText;
     }
 
     private WebElement getWebElementFromDriver(String type, String value) {
