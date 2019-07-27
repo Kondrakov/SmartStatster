@@ -22,7 +22,9 @@ public class RqBotStubServlet extends HttpServlet {
         if (GETUPDATES.equals(action)) {
             rsDirectlyFromBot = rqThruBrowser.updateMessages();
         } else if (SENDMESSAGE.equals(action)) {
-            rsDirectlyFromBot = rqThruBrowser.sendMessage("");
+            String message = request.getParameter("value");
+            String chatID = request.getParameter("chatid");
+            rsDirectlyFromBot = rqThruBrowser.sendMessage(message, chatID);
         }
         response.getWriter().println(rsDirectlyFromBot);
         response.setContentType("text/html;charset=utf-8");
