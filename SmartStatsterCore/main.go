@@ -2,10 +2,12 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 
 	"flag"
@@ -21,12 +23,18 @@ const (
 var addr = flag.String("addr", "127.0.0.1:8080",
 	"TCP address to listen to for incoming connections")
 
+//var bottoken string
+//var params map = make(map[string]string)
+var params Params = Params{"", ""}
+
 func main() {
+
+	ParseCsv()
 
 	flag.Parse()
 
 	s := fasthttp.Server{
-		Handler: handler,
+		Handler: actionHandler,
 	}
 	errFH := s.ListenAndServe(*addr)
 	if errFH != nil {
@@ -34,45 +42,31 @@ func main() {
 	}
 }
 
-func handler(ctx *fasthttp.RequestCtx) {
+func ParseCsv() {
+	file, err := os.Open("params.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 
-	ctx.SetContentType("text/html;charset=utf-8")
+	reader := csv.NewReader(file)
+	reader.FieldsPerRecord = 2
+	reader.Comment = '#'
 
-	ctx.WriteString("<html><head></head><body>" +
-		"<button id=\"get_updates\">GET updates</button>" +
-		"<br/>" +
-		"<button id=\"get_sendmessage\">GET sendmessage</button>" +
-		"<input id=\"message_input\"/>" +
-		"<input id=\"chat_id_input\"/>" +
-
-		"<script type=\"text/javascript\">" +
-		"var getUpdates = document.getElementById(\"get_updates\");" +
-		"var getUpdatesMethod = (event) => {" +
-		"var request = new XMLHttpRequest();" +
-		"request.open(\"GET\", \"/?action=getupdates\", true);" +
-		"request.setRequestHeader(\"Content-type\", \"application/x-www-form-urlencoded\");" +
-		//"var params = \"action=getupdates\";" +
-		//"request.send(params);" +
-		"request.send();" +
-		"};" +
-		"getUpdates.addEventListener(\"click\", getUpdatesMethod);" +
-
-		"var getSendmessage = document.getElementById(\"get_sendmessage\");" +
-		"var bodySendmessage = document.getElementById(\"message_input\");" +
-		"var chatIDInput = document.getElementById(\"chat_id_input\");" +
-		"var getSendmessageMethod = (event) => {" +
-		"var request = new XMLHttpRequest();" +
-		"request.open(\"GET\", \"/?action=sendmessage&value=\" + bodySendmessage.value + \"&chatid=\" + chatIDInput.value, true);" +
-		"request.setRequestHeader(\"Content-type\", \"application/x-www-form-urlencoded\");" +
-		"request.send();" +
-		"};" +
-		"getSendmessage.addEventListener(\"click\", getSendmessageMethod);" +
-		"</script></body></html>")
-
-	fmt.Println("Query string is %q\n", string(ctx.QueryArgs().Peek("action")))
-	fmt.Println(ctx.QueryArgs())
-
-	actionHandler(ctx)
+	for {
+		record, e := reader.Read()
+		if e != nil {
+			fmt.Println(e)
+			break
+		}
+		if record[0] == "baseurl" {
+			params.BaseUrl = record[1]
+		}
+		if record[0] == "token" {
+			params.Token = record[1]
+		}
+		fmt.Println(record)
+	}
 }
 
 func actionHandler(ctx *fasthttp.RequestCtx) {
@@ -87,19 +81,19 @@ func actionHandler(ctx *fasthttp.RequestCtx) {
 	fmt.Println(chatid)
 	fmt.Println("one::" + action)
 
-	var actionNext string = ""
+	var actionNext string = fmt.Sprintf(params.BaseUrl, params.Token)
 	switch action {
 	case "getupdates":
-		actionNext = "?action=getupdates"
+		actionNext += "/getUpdates"
 	case "sendmessage":
 		if value != "" {
-			actionNext = "?action=sendmessage" + "&value=" + value + "&chatid=" + chatid
+			actionNext += "/sendMessage?chat_id=570051893&text=Greetings"
 		}
 	case "":
 		actionNext = ""
 	}
 	if actionNext != "" {
-		resp, err := http.Get("http://127.0.0.1:8085/bot_get" + actionNext)
+		resp, err := http.Get(actionNext)
 		if err != nil {
 			fmt.Println(err)
 			return
