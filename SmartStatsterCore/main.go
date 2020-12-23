@@ -16,15 +16,9 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const (
-	pi float64 = 3.1415
-)
-
 var addr = flag.String("addr", "127.0.0.1:8080",
 	"TCP address to listen to for incoming connections")
 
-//var bottoken string
-//var params map = make(map[string]string)
 var params Params = Params{"", ""}
 
 func main() {
@@ -86,9 +80,7 @@ func actionHandler(ctx *fasthttp.RequestCtx) {
 	case "getupdates":
 		actionNext += "/getUpdates"
 	case "sendmessage":
-		if value != "" {
-			actionNext += "/sendMessage?chat_id=570051893&text=Greetings"
-		}
+		actionNext += "/sendMessage?chat_id=570051893&text=Greetings"
 	case "":
 		actionNext = ""
 	}
