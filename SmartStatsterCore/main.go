@@ -5,13 +5,12 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"math/rand"
-	"net/http"
+
 	"os"
-	"strconv"
 
 	"flag"
-	"log"
+
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -22,18 +21,55 @@ var addr = flag.String("addr", "127.0.0.1:8080",
 var params Params = Params{"", ""}
 
 func main() {
-
 	ParseCsv()
 
-	flag.Parse()
+	fmt.Println("test stream")
+	fmt.Println("started")
 
-	s := fasthttp.Server{
-		Handler: actionHandler,
+	go worker(time.NewTicker(10000 * time.Millisecond))
+	for {
 	}
-	errFH := s.ListenAndServe(*addr)
-	if errFH != nil {
-		log.Fatalf("error in ListenAndServe: %s", errFH)
+
+}
+
+func worker(ticker *time.Ticker) {
+	var lastUpdate = time.Now()
+	var timeSince float64
+	for range ticker.C {
+
+		body, err := get(fmt.Sprintf(params.BaseUrl, params.Token) + "/getUpdates")
+		fmt.Println(body)
+		fmt.Println(err)
+
+		var updates Updates
+		errUnm := json.Unmarshal(body, &updates)
+		if errUnm != nil {
+			fmt.Println("error:", errUnm)
+		}
+		fmt.Println("%+v", updates)
+
+		if len(updates.Result) > 0 {
+			fmt.Println(updates.Result[0].Message.Text)
+			body, err := get(fmt.Sprintf(params.BaseUrl, params.Token) +
+				"/sendMessage?chat_id=570051893&text=" +
+				fmt.Sprintf("%g", average()))
+			fmt.Println(body)
+			fmt.Println(err)
+		}
+
+		timeSince = time.Since(lastUpdate).Seconds()
+		fmt.Println("Time to work ", fmt.Sprintf("%g", timeSince))
+		lastUpdate = time.Now()
 	}
+}
+
+func get(uri string) ([]byte, error) {
+	statusCode, body, err := fasthttp.Get(nil, uri)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(statusCode)
+	return body, nil
 }
 
 func ParseCsv() {
@@ -58,82 +94,6 @@ func ParseCsv() {
 		}
 		if record[0] == "token" {
 			params.Token = record[1]
-		}
-		fmt.Println(record)
-	}
-}
-
-func actionHandler(ctx *fasthttp.RequestCtx) {
-	var jsonBlob = []byte("")
-
-	var action string = string(ctx.QueryArgs().Peek("action"))
-	var value string = string(ctx.QueryArgs().Peek("value"))
-	var chatid string = string(ctx.QueryArgs().Peek("chatid"))
-
-	fmt.Println("one")
-	fmt.Println(value)
-	fmt.Println(chatid)
-	fmt.Println("one::" + action)
-
-	var actionNext string = fmt.Sprintf(params.BaseUrl, params.Token)
-	switch action {
-	case "getupdates":
-		actionNext += "/getUpdates"
-	case "sendmessage":
-		actionNext += "/sendMessage?chat_id=570051893&text=Greetings"
-	case "":
-		actionNext = ""
-	}
-	if actionNext != "" {
-		resp, err := http.Get(actionNext)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		defer resp.Body.Close()
-		for true {
-			bs := make([]byte, 1014)
-			n, err := resp.Body.Read(bs)
-			jsonBlob = []byte(string(bs[:n]))
-			fmt.Println(string(bs[:n]))
-
-			if n == 0 || err != nil {
-				break
-			}
-		}
-		fmt.Println(actionNext)
-		if actionNext == "?action=getupdates" {
-			var updates Updates
-			errUnm := json.Unmarshal(jsonBlob, &updates)
-			if errUnm != nil {
-				fmt.Println("error:", errUnm)
-			}
-			fmt.Println("%+v", updates)
-
-			if len(updates.Result) > 0 {
-			}
-			for i := 0; i < len(updates.Result); i++ {
-				var responseReactionWords = [3]string{"Hello", "Hi", "Привет"}
-				rand.Shuffle(len(responseReactionWords), func(ind, jnd int) {
-					responseReactionWords[ind], responseReactionWords[jnd] = responseReactionWords[jnd], responseReactionWords[ind]
-				})
-				for j := 0; j < len(responseReactionWords); j++ {
-					fmt.Println("-- " + responseReactionWords[j] + " -- " + updates.Result[i].Message.Text)
-					if responseReactionWords[j] == updates.Result[i].Message.Text {
-						fmt.Println("%+v", updates.Result[i].Message.Text)
-						actionNext = "?action=sendmessage" + "&value=" + responseReactionWords[0] + "&chatid=" + strconv.Itoa(updates.Result[i].Message.Chat.Id)
-
-						fmt.Println(updates.Result[i].Message.Chat.Id)
-
-						resp, err := http.Get("http://127.0.0.1:8085/bot_get" + actionNext)
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
-						defer resp.Body.Close()
-					}
-				}
-			}
 		}
 	}
 }
