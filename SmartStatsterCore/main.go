@@ -4,7 +4,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"flag"
 
@@ -65,8 +64,6 @@ func workerBotResp(ticker *time.Ticker) {
 			}
 		}
 
-		fmt.Println(body)
-
 		for k, v := range lastq {
 			if string(v[1]) != "" {
 				body, err := get(fmt.Sprintf(params.BaseUrl, params.Token) +
@@ -83,15 +80,4 @@ func workerBotResp(ticker *time.Ticker) {
 		fmt.Println("Time to work ", fmt.Sprintf("%g", timeSince))
 		lastUpdate = time.Now()
 	}
-}
-
-func convint(strtoint string) int {
-	if strtoint == "" {
-		return 0
-	}
-	i, err := strconv.Atoi(strtoint)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return i
 }

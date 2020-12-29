@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/valyala/fasthttp"
 )
@@ -40,6 +41,22 @@ func parseCsvParams() Params {
 	return params
 }
 
+func parseCsvPatients() [][]string {
+	var patients [][]string
+	reader, file := loadAndReadCsv("patients.csv", 5)
+	defer file.Close()
+
+	for {
+		patient, e := reader.Read()
+		if e != nil {
+			fmt.Println(e)
+			break
+		}
+		patients = append(patients, patient)
+	}
+	return patients
+}
+
 func loadAndReadCsv(path string, fieldsNum int) (*csv.Reader, *os.File) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -49,4 +66,15 @@ func loadAndReadCsv(path string, fieldsNum int) (*csv.Reader, *os.File) {
 	reader.FieldsPerRecord = fieldsNum
 	reader.Comment = '#'
 	return reader, file
+}
+
+func convint(strtoint string) int {
+	if strtoint == "" {
+		return 0
+	}
+	i, err := strconv.Atoi(strtoint)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return i
 }
