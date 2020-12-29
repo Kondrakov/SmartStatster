@@ -2,37 +2,33 @@
 package main
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-
-	"os"
+	"strconv"
 
 	"flag"
 
 	"time"
-
-	"github.com/valyala/fasthttp"
 )
 
 var addr = flag.String("addr", "127.0.0.1:8080",
 	"TCP address to listen to for incoming connections")
 
-var params Params = Params{"", ""}
+var params Params = parseCsvParams()
+
+var lastq map[int][2]string
 
 func main() {
-	ParseCsv()
+	lastq = make(map[int][2]string)
 
-	fmt.Println("test stream")
 	fmt.Println("started")
 
-	go worker(time.NewTicker(10000 * time.Millisecond))
+	go workerBotResp(time.NewTicker(10000 * time.Millisecond))
 	for {
 	}
-
 }
 
-func worker(ticker *time.Ticker) {
+func workerBotResp(ticker *time.Ticker) {
 	var lastUpdate = time.Now()
 	var timeSince float64
 	for range ticker.C {
@@ -48,52 +44,54 @@ func worker(ticker *time.Ticker) {
 		}
 		fmt.Println("%+v", updates)
 
-		if len(updates.Result) > 0 {
-			fmt.Println(updates.Result[0].Message.Text)
-			body, err := get(fmt.Sprintf(params.BaseUrl, params.Token) +
-				"/sendMessage?chat_id=570051893&text=" +
-				fmt.Sprintf("%g", average()))
-			fmt.Println(body)
-			fmt.Println(err)
+		msgLen := len(updates.Result)
+		for i := 0; i < msgLen; i++ {
+			if convint(lastq[updates.Result[i].Message.Chat.Id][0]) > 0 {
+				if convint(lastq[updates.Result[i].Message.Chat.Id][0]) < updates.Result[i].Message.MessageId {
+					currq := [2]string{"", ""}
+					currq[0] = fmt.Sprintf("%d", updates.Result[i].Message.MessageId)
+					currq[1] = updates.Result[i].Message.Text
+					lastq[updates.Result[i].Message.Chat.Id] = currq
+				} else {
+					exchcurrq := lastq[updates.Result[i].Message.Chat.Id]
+					currq := [2]string{exchcurrq[0], ""}
+					lastq[updates.Result[i].Message.Chat.Id] = currq
+				}
+			} else {
+				currq := [2]string{"", ""}
+				currq[0] = fmt.Sprintf("%d", updates.Result[i].Message.MessageId)
+				currq[1] = updates.Result[i].Message.Text
+				lastq[updates.Result[i].Message.Chat.Id] = currq
+			}
 		}
 
+		fmt.Println(body)
+
+		for k, v := range lastq {
+			if string(v[1]) != "" {
+				body, err := get(fmt.Sprintf(params.BaseUrl, params.Token) +
+					fmt.Sprintf("/sendMessage?chat_id=%d", k) +
+					"&text=" + answer(string(v[1])))
+				fmt.Println(body)
+				fmt.Println(err)
+			} else {
+				fmt.Println("answered")
+			}
+
+		}
 		timeSince = time.Since(lastUpdate).Seconds()
 		fmt.Println("Time to work ", fmt.Sprintf("%g", timeSince))
 		lastUpdate = time.Now()
 	}
 }
 
-func get(uri string) ([]byte, error) {
-	statusCode, body, err := fasthttp.Get(nil, uri)
+func convint(strtoint string) int {
+	if strtoint == "" {
+		return 0
+	}
+	i, err := strconv.Atoi(strtoint)
 	if err != nil {
-		return nil, err
+		fmt.Println(err)
 	}
-	fmt.Println(statusCode)
-	return body, nil
-}
-
-func ParseCsv() {
-	file, err := os.Open("params.csv")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	reader.FieldsPerRecord = 2
-	reader.Comment = '#'
-
-	for {
-		record, e := reader.Read()
-		if e != nil {
-			fmt.Println(e)
-			break
-		}
-		if record[0] == "baseurl" {
-			params.BaseUrl = record[1]
-		}
-		if record[0] == "token" {
-			params.Token = record[1]
-		}
-	}
+	return i
 }
