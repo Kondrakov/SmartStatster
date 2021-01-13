@@ -18,13 +18,14 @@ var params Params = parseCsvParams()
 var lastq map[int][2]string
 
 func main() {
+
 	lastq = make(map[int][2]string)
 
 	fmt.Println("started")
 
 	go workerBotResp(time.NewTicker(10000 * time.Millisecond))
-	for {
-	}
+
+	select {}
 }
 
 func workerBotResp(ticker *time.Ticker) {
